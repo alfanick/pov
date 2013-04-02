@@ -4,13 +4,13 @@
 # License: <insert your license reference here>
 
 DEVICE     = atmega2560
-CLOCK      = 8000000ul
+CLOCK      = 16000000ul
 PROGRAMMER = -c usbasp
 OBJECTS    = main.o
-FUSES      = -U lfuse:w:0xc2:m -U hfuse:w:0x99:m -U efuse:w:0xff:m
+FUSES      = -U lfuse:w:0xff:m -U hfuse:w:0x99:m -U efuse:w:0xff:m
 
 AVRDUDE = avrdude $(PROGRAMMER) -p $(DEVICE)
-COMPILE = avr-gcc -Wall -Os -DF_CPU=$(CLOCK) -mmcu=$(DEVICE)
+COMPILE = avr-gcc -Wall -Os -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) -Wl,--defsym=__heap_start=0x801100,--defsym=__heap_end=0x8030ff
 
 # symbolic targets:
 all:	main.hex
