@@ -10,7 +10,8 @@ OBJECTS    = main.o
 FUSES      = -U lfuse:w:0xff:m -U hfuse:w:0x99:m -U efuse:w:0xff:m
 
 AVRDUDE = avrdude $(PROGRAMMER) -p $(DEVICE)
-COMPILE = avr-gcc -Wall -Os -DF_CPU=$(CLOCK) -mmcu=$(DEVICE) -Wl,--defsym=__heap_start=0x801100,--defsym=__heap_end=0x8030ff
+COMPILE = avr-gcc -Wall -Os -DF_CPU=$(CLOCK) -mmcu=$(DEVICE)
+# -Wl,--defsym=__heap_start=0x801100,--defsym=__heap_end=0x8030ff
 
 # symbolic targets:
 all:	main.hex
