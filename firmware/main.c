@@ -72,6 +72,7 @@ int main(void)
     uint8_t mode = 1;
     uint8_t rec;
     uint8_t bp = 0;
+    /*
     while (1) {
         
         while (!( UCSR3A & (1<<UDRE3)));
@@ -103,15 +104,17 @@ int main(void)
         bp %= 120;
      
     }
-    /*
+    */
     j = 0;
     while (1) {
         
         j++;
-        j %= 120;
+        j %= 40;
   
-        for (i = 0; i < 120; i++)
-            buffer[i] = (i==j) ? 4095 : 0;
+        for (i = 0; i < 40; i++) {
+            buffer[i*3+2] = buffer[i*3+1] = buffer[i*3] = (i==j) ? 4095 : 0;
+            //buffer[i*3+1] =
+        }
         
         for (i = 0; i < 120; i++) {
             // wysylka prawych 8 bitow
@@ -132,9 +135,9 @@ int main(void)
         
         commit();
         
-        _delay_ms(10);
+        //_delay_ms(100);
         //break;
-    }*/
+    }
     
     //uint8_t *mem = malloc(9000);
   
