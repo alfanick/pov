@@ -1,6 +1,7 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <util/delay.h>
+#include <util/atomic.h>
 
 #include <stdlib.h>
 
@@ -18,39 +19,62 @@ inline void send_led(uint8_t a) {
 }
 
 inline void commit() {
-    PORTB |= LATCH;
-    PORTB &= ~LATCH;
+    PORTB |= LATCH | BLANK;
+    PORTB &= ~(LATCH | BLANK);
+}
+
+volatile uint8_t buffer[120];
+
+void send_translate() {
+    static uint8_t mode = 1, to_send = 0;
+
 }
 
 inline uint16_t translate(uint8_t a) {
     return (a * 4095) / 255;
 }
 
-uint16_t buffer[120];
 
 
 uint8_t buffer_position = 0;
 uint8_t i;
-uint8_t need_to_run;
+volatile uint8_t need_to_run;
 
-uint16_t j;
+volatile uint8_t j;
+
+// Wcisniecie guziczka
+ISR(PCINT1_vect) {
+    if (!(PINJ & (1<<PJ5))) {
+        j++;
+        need_to_run = 1;
+    }
+}
+
+// Odbior danych z uarta
+ISR(USART3_RX_vect)
+{
+    char ReceivedByte;
+    ReceivedByte = UDR3;
+    UDR3 = ReceivedByte;
+}
+
 int main(void)
 {
     //sei();
-    
+
     //UCSR3C =
-    
-    UCSR3B = (1<<RXEN3) | (1<<TXEN3);// | (1<<RXCIE3) | (1<<TXCIE3); //0x18;      //reciever enable , transmitter enable
+
+    UCSR3B = (1<<RXEN3) | (1<<TXEN3) | (1<<RXCIE3);// | (1<<TXCIE3); //0x18;      //reciever enable , transmitter enable
     UBRR3H = 0;
     UBRR3L = 8;
-    
+
     // outputy + SS
     DDRB |= (CLOCK | DATA | BLANK | LATCH | (1<<PB0));
     // stan niski
     PORTB &= ~(CLOCK | DATA | BLANK | LATCH);
 
     // SPI, bity odwrotnie
-    SPCR = (1<<SPE) | (1<<MSTR); //| (1<<DORD);
+    SPCR = (1<<SPE) | (1<<MSTR) | (1<<SPR1) | (1<<SPR0); //| (1<<DORD);
     // max predkosc
     SPSR = 0;//(1<<SPI2X);
 
@@ -59,88 +83,180 @@ int main(void)
     // czekamy dwie sekundy
     //_delay_ms(2000);
     // blank na niski
-    PORTB &= ~BLANK;
-    
+    PORTB&= ~BLANK;
+
+    PCICR |= (1<<PCIE1);
+    PCMSK1 |= (1<<PCINT14);
+
+    sei();
+
     for (i = 0; i < 180; i++)
         send_led(0);
     commit();
-    
-    
+
+
     //buffer = //malloc(180 * sizeof(uint16_t));
-    
+    /*
     uint8_t to_send = 0;
     uint8_t mode = 1;
     uint8_t rec;
     uint8_t bp = 0;
+    uint8_t k = 0;
+    //while (1) {
+
+    for (i = 0; i < 40; i++) {
+        buffer[i*3] = 4095;//(i%3 == 0) ? 4095 : 0;//translate(255);
+        buffer[i*3 + 1] = 0;
+        buffer[i*3 + 2] = 0;
+    }
+
+    to_send = 0b00000000;
+    mode = 1;
+    for (i = 0; i < 120; i++) {
+        // wysylka prawych 8 bitow
+        if (mode) {
+            send_led((uint8_t) (buffer[i] >> 4));
+
+            to_send = ((buffer[i] << 12) >> 8);
+        } else {
+            to_send |= buffer[i] >> 8;
+
+            send_led(to_send);
+
+            send_led((buffer[i] << 8) >> 8);
+        }
+
+        mode = !mode;
+    }
+
+    commit();
+     */
+       // send_translate();
+
+    //    _delay_ms(100);
+    //}
+
     /*
     while (1) {
-        
+
         while (!( UCSR3A & (1<<UDRE3)));
         //while(!(UCSR3A & (1<<RXC3)));
         buffer[bp] = translate(UDR3);//translate(rec);
         bp++;
-        
+
         if (bp == 120) {
-            for (i = 0; i < 120; i++) {
-                // wysylka prawych 8 bitow
-                if (mode) {
-                    send_led((uint8_t) (buffer[i] >> 4));
-                    
-                    to_send = ((buffer[i] << 12) >> 8);
-                } else {
-                    to_send |= buffer[i] >> 8;
-                    
-                    send_led(to_send);
-                    
-                    send_led((buffer[i] << 8) >> 8);
-                }
-                
-                mode = !mode;
-            }
-            
-            commit();
+
         }
-        
+
         bp %= 120;
-     
+
     }
     */
+    /*
     j = 0;
     while (1) {
-        
+        //for (i = 0; i < 180; i++)
+        //    send_led(0b11111111);
+        //commit();
+
+        //_delay_ms(500);
+
+        ATOMIC_BLOCK(ATOMIC_FORCEON) {
+            if (int14) {
+                for (i = 0; i < 180; i++)
+                    send_led(0b11111111);
+                commit();
+
+                _delay_ms(500);
+
+                for (i = 0; i < 180; i++)
+                    send_led(0);
+                commit();
+
+                _delay_ms(500);
+
+                int14 = 0;
+            }
+        }
+
+        //for (i = 0; i < 180; i++)
+        //    send_led(0);
+        //commit();
+
+        _delay_ms(500);
+
+    }*/
+
+    /*while(1) {
         j++;
         j %= 40;
-  
+
         for (i = 0; i < 40; i++) {
             buffer[i*3+2] = buffer[i*3+1] = buffer[i*3] = (i==j) ? 4095 : 0;
             //buffer[i*3+1] =
         }
-        
+
         for (i = 0; i < 120; i++) {
             // wysylka prawych 8 bitow
             if (mode) {
                 send_led((uint8_t) (buffer[i] >> 4));
-            
+
                 to_send = ((buffer[i] << 12) >> 8);
             } else {
                 to_send |= buffer[i] >> 8;
-                
+
                 send_led(to_send);
-                
+
                 send_led((buffer[i] << 8) >> 8);
             }
-            
+
             mode = !mode;
         }
-        
+
         commit();
-        
-        //_delay_ms(100);
+
+     //   _delay_ms(50);
         //break;
+    }*/
+
+
+    j = 0;
+    volatile uint8_t mode = 1;
+    volatile uint8_t to_send = 0;
+    volatile uint16_t tmp;
+    need_to_run = 1;
+    while (1) {
+        if (need_to_run) {
+            for (i = 0; i < 120; i++) {
+                buffer[i] = (i%3 == j) ? 255 : 0;
+            }
+
+            for (i = 0; i < 120; i++) {
+                tmp = translate(buffer[i]);
+                // wysylka prawych 8 bitow
+                if (mode) {
+                    send_led((uint8_t) (tmp >> 4));
+
+                    to_send = ((tmp << 12) >> 8);
+                } else {
+                    to_send |= tmp >> 8;
+
+                    send_led(to_send);
+
+                    send_led((tmp << 8) >> 8);
+                }
+
+                mode = !mode;
+            }
+            commit();
+        //j++;
+            need_to_run = 0;
+            j %= 3;
+        }
     }
-    
+
     //uint8_t *mem = malloc(9000);
-  
+
     /*
     while (1) {
         while ( !( UCSR3A & (1<<UDRE3)));
@@ -150,8 +266,8 @@ int main(void)
         while ( !( UCSR3A & (1<<UDRE3)));
         UDR3 = '\r';
     }
-    
-    
+
+
     uint8_t index, data = 0;
     // Fill memory incrementing values
     for(index = 0; index < BUFFER_SIZE; index++)
@@ -169,7 +285,7 @@ int main(void)
         //    PRINTF("\n");
         //}
     }
-    
+
     while (1) {
         // dla kazdej diody 288 * 5 / 32
         //for (i = 0; i < 180; i++) {
@@ -178,7 +294,7 @@ int main(void)
             SPDR = UDR3;
             // czekaj az sie wysle bufor
             while(!(SPSR & (1<<SPIF)));
-        
+
         while ( !( UCSR3A & (1<<UDRE3)));
         UDR3 = '.';
         while ( !( UCSR3A & (1<<UDRE3)));
