@@ -12,9 +12,9 @@
 
 #define NUM_TLC5947 5
 
-volatile uint8_t need_to_run;
+volatile uint8_t need_to_run, set_white;
 volatile uint8_t j;
-uint8_t buffer[120];
+volatile uint8_t buffer[120];
 uint8_t buffer_position = 0;
 uint8_t i;
 
@@ -58,11 +58,45 @@ void send_translate() {
 
 // Wcisniecie guziczka
 ISR(PCINT1_vect) {
-    if (!(PINJ & (1<<PJ5))) {
-        j++;
-        j%=3;
-        need_to_run = 1;
+  /*  if (!(PINJ & (1<<PJ5))) {
+        set_white = 1;
+        for (i = 0; i < 120; i++) {
+            //buffer[i] = (i%3 == j) ? 255 : 0;
+            buffer[i] = 255;
+        }
+        send_translate();
+        commit();
+        _delay_ms(500);
+        for (i = 0; i < 120; i++) {
+            //buffer[i] = (i%3 == j) ? 255 : 0;
+            buffer[i] = 0;
+        }
+        send_translate();
+        commit();
+        _delay_ms(500);
     }
+    
+    if ( !(PINJ & (1<<PJ6))) {
+        set_white = 1;
+        for (i = 0; i < 120; i++) {
+            //buffer[i] = (i%3 == j) ? 255 : 0;
+            buffer[i] = 255;
+        }
+        send_translate();
+        commit();
+    
+   
+    }*/
+    
+    /*} else {
+        set_white = 0;
+        for (i = 0; i < 120; i++) {
+            //buffer[i] = (i%3 == j) ? 255 : 0;
+            buffer[i] = 0;
+        }
+        send_translate();
+        commit();
+    }*/
 }
 
 // Odbior danych z uarta
@@ -73,11 +107,38 @@ ISR(USART3_RX_vect)
     UDR3 = ReceivedByte;
 }
 
+ISR(TIMER0_OVF_vect)
+{
+    /*
+    for (i = 0; i < 120; i++) {
+        //buffer[i] = (i%3 == j) ? 255 : 0;
+        buffer[i] = (i%3 == 0) ? 255 : 0;
+    }
+    send_translate();
+    commit();
+    _delay_us(10);
+    
+    for (i = 0; i < 120; i++) {
+        //buffer[i] = (i%3 == j) ? 255 : 0;
+        buffer[i] = 0;
+    }
+    send_translate();
+    commit();
+    */
+    //TCNT0 = 0xFF;
+    //ms++;
+}
+
+unsigned long int millis(void)
+{
+    //return ms;
+}
+
 int main(void)
 {
     sei();
 
-    UCSR3B = (1<<RXEN3) | (1<<TXEN3) | (1<<RXCIE3);// | (1<<TXCIE3); //0x18;      //reciever enable , transmitter enable
+    UCSR3B = (1<<RXEN3) | (1<<TXEN3);// | (1<<RXCIE3);// | (1<<TXCIE3); //0x18;      //reciever enable , transmitter enable
     UBRR3H = 0;
     UBRR3L = 8;
 
@@ -86,7 +147,7 @@ int main(void)
     // stan niski
     PORTB &= ~(CLOCK | DATA | BLANK | LATCH);
 
-    // SPI, bity odwrotnie
+    // SPI
     SPCR = (1<<SPE) | (1<<MSTR); //| (1<<DORD);
     // max predkoscq
     SPSR = (1<<SPI2X);
@@ -98,29 +159,35 @@ int main(void)
     // blank na niski
     PORTB&= ~BLANK;
 
+    DDRJ &= ~(1<<PJ5 | 1<<PJ6);
+    
     PCICR |= (1<<PCIE1);
-    PCMSK1 |= (1<<PCINT14);
+    PCMSK1 |= (1<<PCINT14 | 1<<PCINT15);
 
+    TCCR0A = (1<<WGM01);
+    TCCR0B = (1<<CS02);
+    OCR0A = 1000;
+    //TCNT0 = 0xFF; //16 clock cycles
+    TIMSK0 = 1<<OCIE0A; //Set TOIE bit
+    
     for (i = 0; i < 180; i++)
         send_led(0b11111111);
     commit();
     
-    while (1) { }
-    
-    /*
+
     while (1) {
-            for (i = 0; i < 120; i++) {
-                buffer[i] = (i%3 == j) ? 255 : 0;
-                //buffer[i] = 255;
+          /*  for (i = 0; i < 120; i++) {
+                //buffer[i] = (i%3 == j) ? 255 : 0;
+                ATOMIC_BLOCK(ATOMIC_FORCEON) {
+                    buffer[i] = (set_white == 0) ? 255 : 0;
+                }
             }
             send_translate();
             commit();
-            
-            _delay_ms(100);
-    
-        j++;
-        j%=3;
-    }*/
+        
+            j++;
+            j%=3;
+*/    }
     
     //buffer = //malloc(180 * sizeof(uint16_t));
     /*
