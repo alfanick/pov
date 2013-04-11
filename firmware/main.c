@@ -77,7 +77,7 @@ int main(void)
     // wlaczenie przerwan
     sei();
     
-    // outputy + SS
+    // outputy + Slave Select
     DDRB |= (CLOCK | DATA | BLANK | LATCH | (1<<PB0));
     // stan niski
     PORTB &= ~(CLOCK | DATA | BLANK | LATCH);
